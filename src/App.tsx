@@ -206,7 +206,7 @@ export default function App() {
         <div className="description-browser-window">
           <div className="browser-tab-bar">
             <div className="browser-tab">
-              <img src="/favbot.svg" alt="favicon.bot logo" className="browser-tab-icon" />
+              <img src="/favicon.svg" alt="favicon.bot logo" className="browser-tab-icon" />
               <h1 className="browser-tab-title">favicon.bot</h1>
             </div>
           </div>
