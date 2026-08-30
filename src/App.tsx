@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
-import { Download, Loader2, ArrowRight, Package, Bot, Sparkles, ImagePlus } from 'lucide-react';
+import { Download, Loader2, ArrowRight, Package, Bot, Sparkles, ImagePlus, Pipette } from 'lucide-react';
 import JSZip from 'jszip';
 import Cropper, { type Area } from 'react-easy-crop';
 import { getCroppedImg } from './utils/cropImage';
@@ -19,6 +19,10 @@ export default function App() {
 
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
+  const [cropBorderRadius, setCropBorderRadius] = useState(0);
+  const [cropBgColor, setCropBgColor] = useState('transparent');
+  const [cropBorderWidth, setCropBorderWidth] = useState(4);
+  const [cropBorderColor, setCropBorderColor] = useState('#0F172A');
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   const onCropComplete = (_croppedArea: Area, croppedAreaPixels: Area) => {
@@ -102,7 +106,7 @@ export default function App() {
 
     if (preview && croppedAreaPixels) {
       try {
-        targetFileBlob = await getCroppedImg(preview, croppedAreaPixels);
+        targetFileBlob = await getCroppedImg(preview, croppedAreaPixels, cropBgColor, cropBorderRadius, cropBorderWidth, cropBorderColor);
       } catch (err) {
         console.error("Cropping failed", err);
         alert("Failed to process the image crop. Please try a different image.");
@@ -253,32 +257,157 @@ export default function App() {
         </label>
 
         {preview && (
-          <div className="preview-container" style={{ background: 'var(--card-bg)', border: '4px solid var(--border-color)', padding: '1.5rem', borderRadius: '16px', boxShadow: '8px 8px 0px var(--secondary)', margin: '2rem auto', maxWidth: '350px' }}>
-            <h2 style={{ marginBottom: '1rem', fontWeight: '900', fontSize: '1.4rem', color: 'var(--text-main)', margin: '0 0 1rem 0' }}>Adjust Crop</h2>
-            <div style={{ position: 'relative', width: '100%', height: '300px', borderRadius: '12px', overflow: 'hidden', border: '4px solid var(--border-color)', boxShadow: '4px 4px 0px var(--primary)', background: '#111' }}>
-              <Cropper
-                image={preview}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                onCropChange={setCrop}
-                onCropComplete={onCropComplete}
-                onZoomChange={setZoom}
-                style={{ containerStyle: { background: '#222' } }}
-              />
+          <div className="preview-container" style={{ background: 'var(--card-bg)', border: '4px solid var(--border-color)', padding: '2rem', borderRadius: '16px', boxShadow: '8px 8px 0px var(--secondary)', margin: '2rem auto', maxWidth: '800px', display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
+            
+            <div style={{ width: '300px', flex: 'none', margin: '0 auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <h2 style={{ marginBottom: '1rem', fontWeight: '900', fontSize: '1.4rem', color: 'var(--text-main)', margin: '0 0 1rem 0', textAlign: 'center' }}>Adjust Crop</h2>
+              
+              {/* Note: The Cropper wraps everything. We simulate the border radius and background color using standard CSS on its container, which helps visualize the final output shape before crop. */}
+              <div style={{ position: 'relative', width: '300px', height: '300px', borderRadius: `${cropBorderRadius}%`, overflow: 'hidden', background: cropBgColor === 'transparent' ? 'repeating-conic-gradient(#444 0% 25%, #222 0% 50%) 50% / 20px 20px' : cropBgColor, transition: 'background 0.3s, border-radius 0.3s' }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: `${cropBorderRadius}%`, border: `${cropBorderWidth}px solid ${cropBorderColor}`, pointerEvents: 'none', zIndex: 10, boxSizing: 'border-box', transition: 'border-radius 0.3s' }}></div>
+                <Cropper
+                  image={preview}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  cropSize={{ width: 300, height: 300 }}
+                  showGrid={false}
+                  minZoom={0.1}
+                  restrictPosition={false}
+                  onCropChange={setCrop}
+                  onCropComplete={onCropComplete}
+                  onZoomChange={setZoom}
+                  style={{ containerStyle: { background: 'transparent' } }}
+                />
+              </div>
+              <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-main)' }}>Zoom:</label>
+                <input
+                  type="range"
+                  value={zoom}
+                  min={0.1}
+                  max={3}
+                  step={0.05}
+                  aria-labelledby="Zoom"
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  style={{ flex: 1, accentColor: 'var(--primary)' }}
+                />
+              </div>
             </div>
-            <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <label style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-main)' }}>Zoom:</label>
-              <input
-                type="range"
-                value={zoom}
-                min={1}
-                max={3}
-                step={0.1}
-                aria-labelledby="Zoom"
-                onChange={(e) => setZoom(Number(e.target.value))}
-                style={{ flex: 1, accentColor: 'var(--primary)' }}
-              />
+
+            {/* Tools Sidebar */}
+            <div style={{ flex: '1 1 250px', display: 'flex', flexDirection: 'column', gap: '0.75rem', textAlign: 'left', background: 'var(--bg-color)', padding: '1rem', borderRadius: '12px', border: '2px solid var(--border-color)' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--text-main)', margin: '0 0 0.25rem 0' }}>Icon Shape</h3>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button onClick={() => setCropBorderRadius(0)} className="btn" style={{ background: cropBorderRadius === 0 ? 'var(--primary)' : 'var(--bg-card)', color: cropBorderRadius === 0 ? '#000' : 'var(--text-main)', padding: '0.25rem 0.5rem', flex: 1, fontSize: '0.8rem', minHeight: 'auto', boxShadow: '2px 2px 0px var(--secondary)' }}>Square</button>
+                  <button onClick={() => setCropBorderRadius(25)} className="btn" style={{ background: cropBorderRadius > 0 && cropBorderRadius < 50 ? 'var(--primary)' : 'var(--bg-card)', color: cropBorderRadius > 0 && cropBorderRadius < 50 ? '#000' : 'var(--text-main)', padding: '0.25rem 0.5rem', flex: 1, fontSize: '0.8rem', minHeight: 'auto', boxShadow: '2px 2px 0px var(--secondary)' }}>Rounded</button>
+                  <button onClick={() => setCropBorderRadius(50)} className="btn" style={{ background: cropBorderRadius === 50 ? 'var(--primary)' : 'var(--bg-card)', color: cropBorderRadius === 50 ? '#000' : 'var(--text-main)', padding: '0.25rem 0.5rem', flex: 1, fontSize: '0.8rem', minHeight: 'auto', boxShadow: '2px 2px 0px var(--secondary)' }}>Circle</button>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--text-main)', margin: 0 }}>Corner Radius</h3>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>{cropBorderRadius}%</span>
+                </div>
+                <input
+                  type="range"
+                  value={cropBorderRadius}
+                  min={0}
+                  max={50}
+                  step={1}
+                  onChange={(e) => setCropBorderRadius(Number(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--primary)', margin: '0.25rem 0 0 0' }}
+                />
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--text-main)', margin: '0 0 0.25rem 0' }}>Background Color</h3>
+                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {['transparent', '#ffffff', '#000000', '#F472B6', '#60A5FA', '#34D399', '#FBBF24'].map(color => (
+                    <button
+                      key={color}
+                      onClick={() => setCropBgColor(color)}
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        background: color === 'transparent' ? 'repeating-conic-gradient(#ccc 0% 25%, white 0% 50%) 50% / 10px 10px' : color,
+                        border: cropBgColor === color ? '3px solid var(--primary)' : '2px solid var(--border-color)',
+                        cursor: 'pointer',
+                        transform: cropBgColor === color ? 'scale(1.1)' : 'scale(1)',
+                        transition: 'transform 0.1s',
+                        boxShadow: '1px 1px 0px rgba(0,0,0,0.1)',
+                        padding: 0
+                      }}
+                      title={color}
+                    />
+                  ))}
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid var(--border-color)', overflow: 'hidden', position: 'relative', boxShadow: '1px 1px 0px rgba(0,0,0,0.1)', background: cropBgColor === 'transparent' ? '#ffffff' : cropBgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <input 
+                      type="color" 
+                      value={cropBgColor === 'transparent' ? '#ffffff' : cropBgColor} 
+                      onChange={(e) => setCropBgColor(e.target.value)}
+                      style={{ width: '200%', height: '200%', position: 'absolute', top: '-50%', left: '-50%', cursor: 'pointer', border: 'none', padding: 0, opacity: 0 }}
+                      title="Custom Color"
+                    />
+                    <Pipette size={14} color="#ffffff" style={{ position: 'absolute', pointerEvents: 'none', zIndex: 1, mixBlendMode: 'difference' }} />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--text-main)', margin: 0 }}>Border Width</h3>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>{cropBorderWidth}px</span>
+                </div>
+                <input
+                  type="range"
+                  value={cropBorderWidth}
+                  min={0}
+                  max={20}
+                  step={1}
+                  onChange={(e) => setCropBorderWidth(Number(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--primary)', margin: '0.25rem 0 0 0' }}
+                />
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--text-main)', margin: '0 0 0.25rem 0' }}>Border Color</h3>
+                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {['#0F172A', '#ffffff', '#F472B6', '#60A5FA', '#34D399', '#FBBF24'].map(color => (
+                    <button
+                      key={color}
+                      onClick={() => setCropBorderColor(color)}
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        background: color,
+                        border: cropBorderColor === color ? '3px solid var(--primary)' : '2px solid var(--border-color)',
+                        cursor: 'pointer',
+                        transform: cropBorderColor === color ? 'scale(1.1)' : 'scale(1)',
+                        transition: 'transform 0.1s',
+                        boxShadow: '1px 1px 0px rgba(0,0,0,0.1)',
+                        padding: 0
+                      }}
+                      title={color}
+                    />
+                  ))}
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid var(--border-color)', overflow: 'hidden', position: 'relative', boxShadow: '1px 1px 0px rgba(0,0,0,0.1)', background: cropBorderColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <input 
+                      type="color" 
+                      value={cropBorderColor} 
+                      onChange={(e) => setCropBorderColor(e.target.value)}
+                      style={{ width: '200%', height: '200%', position: 'absolute', top: '-50%', left: '-50%', cursor: 'pointer', border: 'none', padding: 0, opacity: 0 }}
+                      title="Custom Color"
+                    />
+                    <Pipette size={14} color="#ffffff" style={{ position: 'absolute', pointerEvents: 'none', zIndex: 1, mixBlendMode: 'difference' }} />
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
@@ -445,6 +574,10 @@ export default function App() {
         </div>
       </div>
 
+      <footer style={{ marginTop: '4rem', padding: '2rem 1rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', borderTop: '2px solid var(--border-color)', width: '100%', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>Made in 🗼 Tokyo with ❤️</div>
+        <div>Powered by <a href="https://github.com/ffmpegwasm/ffmpeg.wasm" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', fontWeight: 'bold' }}>FFmpeg.wasm</a>. FFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project.</div>
+      </footer>
     </div>
   );
 }
